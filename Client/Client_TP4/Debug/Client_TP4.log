@@ -1,0 +1,9 @@
+﻿  Main.cpp
+x:\bureau\inf3405\td4\inf3405_tp4_1795691_1793057\tp4\client\client_tp4\main.cpp(145): warning C4996: 'inet_ntoa': Use inet_ntop() or InetNtop() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+  c:\program files (x86)\windows kits\10\include\10.0.15063.0\um\winsock2.h(1848): note: voir la déclaration de 'inet_ntoa'
+x:\bureau\inf3405\td4\inf3405_tp4_1795691_1793057\tp4\client\client_tp4\main.cpp(146): warning C4996: 'inet_ntoa': Use inet_ntop() or InetNtop() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+  c:\program files (x86)\windows kits\10\include\10.0.15063.0\um\winsock2.h(1848): note: voir la déclaration de 'inet_ntoa'
+x:\bureau\inf3405\td4\inf3405_tp4_1795691_1793057\tp4\client\client_tp4\main.cpp(152): warning C4996: 'inet_ntoa': Use inet_ntop() or InetNtop() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+  c:\program files (x86)\windows kits\10\include\10.0.15063.0\um\winsock2.h(1848): note: voir la déclaration de 'inet_ntoa'
+  Client_TP4.vcxproj -> X:\Bureau\INF3405\TD4\INF3405_TP4_1795691_1793057\TP4\Client\Client_TP4\Debug\Client_TP4.exe
+  Client_TP4.vcxproj -> X:\Bureau\INF3405\TD4\INF3405_TP4_1795691_1793057\TP4\Client\Client_TP4\Debug\Client_TP4.pdb (Partial PDB)

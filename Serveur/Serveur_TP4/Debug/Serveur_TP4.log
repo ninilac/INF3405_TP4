@@ -1,0 +1,11 @@
+﻿  main.cpp
+x:\bureau\inf3405\td4\inf3405_tp4_1795691_1793057\tp4\serveur\serveur_tp4\main.cpp(175): warning C4996: 'gethostbyname': Use getaddrinfo() or GetAddrInfoW() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+  c:\program files (x86)\windows kits\10\include\10.0.15063.0\um\winsock2.h(2218): note: voir la déclaration de 'gethostbyname'
+x:\bureau\inf3405\td4\inf3405_tp4_1795691_1793057\tp4\serveur\serveur_tp4\main.cpp(181): warning C4996: 'inet_ntoa': Use inet_ntop() or InetNtop() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+  c:\program files (x86)\windows kits\10\include\10.0.15063.0\um\winsock2.h(1848): note: voir la déclaration de 'inet_ntoa'
+x:\bureau\inf3405\td4\inf3405_tp4_1795691_1793057\tp4\serveur\serveur_tp4\main.cpp(187): warning C4996: 'inet_addr': Use inet_pton() or InetPton() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+  c:\program files (x86)\windows kits\10\include\10.0.15063.0\um\winsock2.h(1830): note: voir la déclaration de 'inet_addr'
+x:\bureau\inf3405\td4\inf3405_tp4_1795691_1793057\tp4\serveur\serveur_tp4\main.cpp(219): warning C4996: 'inet_ntoa': Use inet_ntop() or InetNtop() instead or define _WINSOCK_DEPRECATED_NO_WARNINGS to disable deprecated API warnings
+  c:\program files (x86)\windows kits\10\include\10.0.15063.0\um\winsock2.h(1848): note: voir la déclaration de 'inet_ntoa'
+  Serveur_TP4.vcxproj -> X:\Bureau\INF3405\TD4\INF3405_TP4_1795691_1793057\TP4\Serveur\Serveur_TP4\Debug\Serveur_TP4.exe
+  Serveur_TP4.vcxproj -> X:\Bureau\INF3405\TD4\INF3405_TP4_1795691_1793057\TP4\Serveur\Serveur_TP4\Debug\Serveur_TP4.pdb (Partial PDB)
