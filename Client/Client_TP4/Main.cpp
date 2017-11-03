@@ -94,27 +94,26 @@ int __cdecl main(int argc, char **argv)
 			printf("Erreur: adresse IPv4 non conforme.\n");
 		}
 	} while (!isValidHost);
+
+	char port[5];
 	int portInt;
 	do {
 		printf("Entrez le port d'ecoute (entre 5000 et 5050): \n");
-		std::cin >> portInt;
+		gets_s(port);
+		sscanf(port, "%d", &portInt);
 		if (portInt < 5000 || portInt > 5050) {
 			printf("Erreur: le port doit etre entre 5000 et 5050, veuillez reessayer. \n");
 		}
 	} while (portInt < 5000 || portInt > 5050);
-	std::string portStr = std::to_string(portInt);
-	const char* port = portStr.c_str();
 
-	std::string usernameStr;
+	char username[80];
 	printf("Entrez votre nom d'utilisateur: \n");
-	std::cin >> usernameStr;
-	const char* username = usernameStr.c_str();
+	gets_s(username);
 
 	SetStdinEcho(false);
-	std::string passwordStr;
+	char password[80];
 	printf("Entrez votre mot de passe: \n");
-	std::cin >> passwordStr;
-	const char* password = passwordStr.c_str();
+	gets_s(password);
 	SetStdinEcho(true);
 
 	// getaddrinfo obtient l'adresse IP du host donné
@@ -162,7 +161,7 @@ int __cdecl main(int argc, char **argv)
 	printf("Connecte au serveur %s:%s\n\n", host, port);
     freeaddrinfo(result);
 
-	iResult = send(leSocket, username, usernameStr.length(), 0);
+/*	iResult = send(leSocket, username, 80, 0);
 	if (iResult == SOCKET_ERROR) {
 		printf("Erreur du send: %d\n", WSAGetLastError());
 		closesocket(leSocket);
@@ -173,7 +172,7 @@ int __cdecl main(int argc, char **argv)
 		return 1;
 	}
 
-	iResult = send(leSocket, password, passwordStr.length(), 0);
+	iResult = send(leSocket, password, 80, 0);
 	if (iResult == SOCKET_ERROR) {
 		printf("Erreur du send: %d\n", WSAGetLastError());
 		closesocket(leSocket);
@@ -194,7 +193,7 @@ int __cdecl main(int argc, char **argv)
 		getchar();
 
 		return 1;
-	}
+	}*/
 
 	//----------------------------
 	// Demander à l'usager un mot a envoyer au serveur
