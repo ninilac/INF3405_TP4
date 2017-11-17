@@ -116,6 +116,7 @@ int __cdecl main(int argc, char **argv)
 	gets_s(password);
 	SetStdinEcho(true);
 
+
 	// getaddrinfo obtient l'adresse IP du host donné
     iResult = getaddrinfo(host, port, &hints, &result);
     if ( iResult != 0 ) {
@@ -158,80 +159,96 @@ int __cdecl main(int argc, char **argv)
         return 1;
 	}
 
-	printf("Connecte au serveur %s:%s\n\n", host, port);
-    freeaddrinfo(result);
 
-/*	iResult = send(leSocket, username, 80, 0);
-	if (iResult == SOCKET_ERROR) {
-		printf("Erreur du send: %d\n", WSAGetLastError());
+
+	send(leSocket, username, 80, 0);
+	send(leSocket, password, 80, 0);
+
+
+
+	char loginCode[1]; //0 si refusé, 1 si accepté
+	recv(leSocket, loginCode, 1, 0);
+	if (loginCode[0] == '1') {
+		printf("Connecte au serveur %s:%s\n\n", host, port);
+		freeaddrinfo(result);
+
+		/*	iResult = send(leSocket, username, 80, 0);
+			if (iResult == SOCKET_ERROR) {
+				printf("Erreur du send: %d\n", WSAGetLastError());
+				closesocket(leSocket);
+				WSACleanup();
+				printf("Appuyez une touche pour finir\n");
+				getchar();
+
+				return 1;
+			}
+
+			iResult = send(leSocket, password, 80, 0);
+			if (iResult == SOCKET_ERROR) {
+				printf("Erreur du send: %d\n", WSAGetLastError());
+				closesocket(leSocket);
+				WSACleanup();
+				printf("Appuyez une touche pour finir\n");
+				getchar();
+
+				return 1;
+			}
+
+			char validateLogin[1];
+			iResult = recv(leSocket, validateLogin, 1, 0);
+			if (iResult == SOCKET_ERROR) {
+				printf("Erreur du send: %d\n", WSAGetLastError());
+				closesocket(leSocket);
+				WSACleanup();
+				printf("Appuyez une touche pour finir\n");
+				getchar();
+
+				return 1;
+			}*/
+
+			//----------------------------
+			// Demander à l'usager un mot a envoyer au serveur
+		printf("Saisir un mot de 7 lettres pour envoyer au serveur: ");
+		gets_s(motEnvoye);
+
+		//-----------------------------
+		// Envoyer le mot au serveur
+		iResult = send(leSocket, motEnvoye, 7, 0);
+		if (iResult == SOCKET_ERROR) {
+			printf("Erreur du send: %d\n", WSAGetLastError());
+			closesocket(leSocket);
+			WSACleanup();
+			printf("Appuyez une touche pour finir\n");
+			getchar();
+
+			return 1;
+		}
+
+		printf("Nombre d'octets envoyes : %ld\n", iResult);
+
+		//------------------------------
+		// Maintenant, on va recevoir l' information envoyée par le serveur
+		iResult = recv(leSocket, motRecu, 7, 0);
+		if (iResult > 0) {
+			printf("Nombre d'octets recus: %d\n", iResult);
+			motRecu[iResult] = '\0';
+			printf("Le mot recu est %*s\n", iResult, motRecu);
+		}
+		else {
+			printf("Erreur de reception : %d\n", WSAGetLastError());
+		}
+
+		// cleanup
 		closesocket(leSocket);
 		WSACleanup();
+
 		printf("Appuyez une touche pour finir\n");
 		getchar();
-
-		return 1;
+		return 0;
+	} else {
+		printf("Erreur dans la saisie du mot de passe\n");
+		printf("Appuyez une touche pour finir\n");
+		getchar();
+		return 0;
 	}
-
-	iResult = send(leSocket, password, 80, 0);
-	if (iResult == SOCKET_ERROR) {
-		printf("Erreur du send: %d\n", WSAGetLastError());
-		closesocket(leSocket);
-		WSACleanup();
-		printf("Appuyez une touche pour finir\n");
-		getchar();
-
-		return 1;
-	}
-
-	char validateLogin[1];
-	iResult = recv(leSocket, validateLogin, 1, 0);
-	if (iResult == SOCKET_ERROR) {
-		printf("Erreur du send: %d\n", WSAGetLastError());
-		closesocket(leSocket);
-		WSACleanup();
-		printf("Appuyez une touche pour finir\n");
-		getchar();
-
-		return 1;
-	}*/
-
-	//----------------------------
-	// Demander à l'usager un mot a envoyer au serveur
-	printf("Saisir un mot de 7 lettres pour envoyer au serveur: ");
-	gets_s(motEnvoye);
-
-	//-----------------------------
-    // Envoyer le mot au serveur
-    iResult = send(leSocket, motEnvoye, 7, 0 );
-    if (iResult == SOCKET_ERROR) {
-        printf("Erreur du send: %d\n", WSAGetLastError());
-        closesocket(leSocket);
-        WSACleanup();
-		printf("Appuyez une touche pour finir\n");
-		getchar();
-
-        return 1;
-    }
-
-    printf("Nombre d'octets envoyes : %ld\n", iResult);
-
-	//------------------------------
-	// Maintenant, on va recevoir l' information envoyée par le serveur
-	iResult = recv(leSocket, motRecu, 7, 0);
-	if (iResult > 0) {
-		printf("Nombre d'octets recus: %d\n", iResult);
-		motRecu[iResult] = '\0';
-		printf("Le mot recu est %*s\n", iResult, motRecu);
-	}
-    else {
-        printf("Erreur de reception : %d\n", WSAGetLastError());
-    }
-
-    // cleanup
-    closesocket(leSocket);
-    WSACleanup();
-
-	printf("Appuyez une touche pour finir\n");
-	getchar();
-    return 0;
 }
