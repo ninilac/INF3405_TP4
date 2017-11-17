@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <strstream>
 #include <locale>
+#include <fstream>
 
 using namespace std;
 
@@ -193,7 +194,8 @@ int main(void)
 		WSACleanup();
 		return 1;
 	}
-	
+
+
 	//----------------------
 	// Listen for incoming connection requests.
 	// on the created socket
@@ -207,21 +209,82 @@ int main(void)
 
 	printf("En attente des connections des clients sur le port %d...\n\n",ntohs(service.sin_port));
 
+
+
+
+	fstream fichier;
+	fichier.open("infoPersonelle.txt", fstream::in );
+	if (!fichier) {
+		fichier.open("infoPersonelle.txt", fstream::in | fstream::out | fstream::trunc);
+		fichier.close();
+		fichier.open("infoPersonelle.txt", fstream::in);
+	}
+
+
+
+
     while (true) {	
 
 		sockaddr_in sinRemote;
-		 int nAddrSize = sizeof(sinRemote);
+		int nAddrSize = sizeof(sinRemote);
 		// Create a SOCKET for accepting incoming requests.
 		// Accept the connection.
-		 SOCKET sd = accept(ServerSocket, (sockaddr*)&sinRemote, &nAddrSize);
-        if (sd != INVALID_SOCKET) {
-			cout << "Connection acceptee De : " <<
-                    inet_ntoa(sinRemote.sin_addr) << ":" <<
-                    ntohs(sinRemote.sin_port) << "." <<
-                    endl;
+		SOCKET sd = accept(ServerSocket, (sockaddr*)&sinRemote, &nAddrSize);
 
-            DWORD nThreadID;
-            CreateThread(0, 0, EchoHandler, (void*)sd, 0, &nThreadID);
+
+
+
+
+
+
+		char readBuffer;
+		char readUsername[80], readPassword[80];
+		readBuffer = recv(sd, readUsername, 80, 0); 
+		readBuffer = recv(sd, readPassword, 80, 0);
+		size_t usernameSize = strlen(readUsername);
+		size_t passwordSize = strlen(readPassword);
+
+
+
+		bool foundUser = false;
+		bool validCreds = true;
+        if (sd != INVALID_SOCKET) {
+			while (!fichier.eof() && !foundUser) {
+				char username[80];
+				char password[80];
+				fichier >> username;
+				fichier >> password;
+				//fichier.getline(username, 80, (char)" ");
+				//fichier.getline(password, 80, (char)"\n");
+				cout << readUsername << ":" << username << "\n";
+				if (strcmp(readUsername, username) == 0) {
+					cout << "user found\n";
+					foundUser = true;
+					if (strcmp(readPassword, password) != 0) {
+						send(sd, "0", 1, 0);
+						validCreds = false;
+					}
+				}
+			}
+			fichier.close();
+			fichier.open("infoPersonelle.txt", fstream::out | fstream::app);
+			if (!foundUser) {
+				cout << "write" << "\n";
+				fichier.seekp(0, ios_base::end);
+				fichier << readUsername << " " << readPassword << "\n";
+			}
+				fichier.close();
+				fichier.open("infoPersonelle.txt", fstream::in);
+			if (validCreds) {
+				send(sd, "1", 1, 0);
+				cout << "Connection acceptee De : " <<
+					inet_ntoa(sinRemote.sin_addr) << ":" <<
+					ntohs(sinRemote.sin_port) << "." <<
+					endl;
+
+				DWORD nThreadID;
+				CreateThread(0, 0, EchoHandler, (void*)sd, 0, &nThreadID);
+			}
         }
         else {
             cerr << WSAGetLastErrorMessage("Echec d'une connection.") << 
@@ -266,3 +329,12 @@ void DoSomething( char *src, char *dest )
 		dest[index++] = (i % 2 != 0) ? src[i] : toupper(src[i]);
 	}
 }
+
+/*int checkUsernamePassword(char input[80]) {
+	int i = 0;
+	char c;
+	do {
+		c = input[i];
+	} while (c != (char)" " && c != NULL);
+	return i;
+}*/
