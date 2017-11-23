@@ -6,15 +6,37 @@
 #include <strstream>
 #include <locale>
 #include <fstream>
+#include <time.h>
+#include <sstream>
+#include <vector>
 
 using namespace std;
 
 // link with Ws2_32.lib
 #pragma comment( lib, "ws2_32.lib" )
 
+
+
+
+
+struct userStruct
+{
+	SOCKET userSd_;
+	char* username_;
+	char* adresseIP_;
+	int port_;
+	char* message_;
+};
+
+
+
+
+
 // External functions
-extern DWORD WINAPI EchoHandler(void* sd_) ;
+extern DWORD WINAPI EchoHandler(void* user) ;
 extern void DoSomething( char *src, char *dest );
+extern void RemoveSocket(SOCKET s);
+extern char* charDeepCopy(char*, int);
 
 // List of Winsock error constants mapped to an interpretation string.
 // Note that this list must remain sorted by the error constants'
@@ -87,7 +109,7 @@ static struct ErrorEntry {
     ErrorEntry(WSANO_DATA,         "No host data of that type was found")
 };
 const int kNumMessages = sizeof(gaErrorList) / sizeof(ErrorEntry);
-
+vector<userStruct*> userList;
 
 //// WSAGetLastErrorMessage ////////////////////////////////////////////
 // A function similar in spirit to Unix's perror() that tacks a canned 
@@ -221,8 +243,6 @@ int main(void)
 	}
 
 
-
-
     while (true) {	
 
 		sockaddr_in sinRemote;
@@ -283,7 +303,16 @@ int main(void)
 					endl;
 
 				DWORD nThreadID;
-				CreateThread(0, 0, EchoHandler, (void*)sd, 0, &nThreadID);
+
+				userStruct *user = new userStruct();
+				user->userSd_ = sd;
+				user->username_ = charDeepCopy(readUsername, strlen(readUsername));
+				user->adresseIP_ = inet_ntoa(sinRemote.sin_addr);
+				user->port_ = port;
+				
+				userList.push_back(user);
+
+				CreateThread(0, 0, EchoHandler, user, 0, &nThreadID);
 			}
         }
         else {
@@ -295,28 +324,42 @@ int main(void)
 }
 
 
+
+
 //// EchoHandler ///////////////////////////////////////////////////////
 // Handles the incoming data by reflecting it back to the sender.
 
-DWORD WINAPI EchoHandler(void* sd_) 
+static DWORD WINAPI EchoHandler(void* u)
 {
-	SOCKET sd = (SOCKET)sd_;
-
-	// Read Data from client
-	char readBuffer[10], outBuffer[10];
+	userStruct* user = static_cast<userStruct*>(u);
+	SOCKET sd = (SOCKET)user->userSd_;
+	char readBuffer[200], outBuffer[330];
 	int readBytes;
+	while (readBytes = recv(sd, readBuffer, 200, 0) != 0 && readBuffer != "") {
+		// Read Data from client
+		
+		
 
-	readBytes = recv(sd, readBuffer, 7, 0);
-	if (readBytes > 0) {
-        cout << "Received " << readBytes << " bytes from client." << endl;
-		cout << "Received " << readBuffer << " from client." << endl;
-		DoSomething(readBuffer, outBuffer);
-		send(sd, outBuffer, 7, 0);
+		user->message_ = readBuffer;
+		if (readBytes > 0) {
+
+			stringstream replyBuf;
+			time_t timev;
+			replyBuf << "[" << user->username_ << " - " << user->adresseIP_ << ":" << user->port_ << " - " << "]: " << user->message_;
+			strcpy(outBuffer,replyBuf.str().c_str());
+			cout << "reply: " << outBuffer << "\n";
+			for(vector<userStruct*>::iterator it = userList.begin(); it != userList.end(); ++it){
+				send((*it)->userSd_, outBuffer, sizeof(outBuffer) / sizeof(outBuffer[0]), 0);
+			}
+		}
+		else if (readBytes == SOCKET_ERROR) {
+			cout << WSAGetLastErrorMessage("Echec de la reception !") << endl;
+		}
+			
+		memset(readBuffer, 0, sizeof(readBuffer));
 	}
-	else if (readBytes == SOCKET_ERROR) {
-		cout << WSAGetLastErrorMessage("Echec de la reception !") << endl;
-	}
-	closesocket(sd);
+	RemoveSocket(sd);
+	
 
 	return 0;
 }
@@ -328,6 +371,22 @@ void DoSomething( char *src, char *dest )
 	{
 		dest[index++] = (i % 2 != 0) ? src[i] : toupper(src[i]);
 	}
+}
+
+void RemoveSocket(SOCKET s){
+	for (vector<userStruct*>::iterator it = userList.begin(); it != userList.end(); ++it) {
+		if ((*it)->userSd_ == s)
+			userList.erase(it);
+	}
+	closesocket(s);
+}
+
+char* charDeepCopy(char* source, int size) {
+	char* arr2 = new char[size + 1];
+	for (int i = 0; i < size; ++i) {
+		arr2[i] = source[i];
+	}
+	return arr2;
 }
 
 /*int checkUsernamePassword(char input[80]) {

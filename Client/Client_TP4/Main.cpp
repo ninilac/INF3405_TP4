@@ -17,6 +17,8 @@
 #include <unistd.h>
 #endif
 
+extern DWORD WINAPI recvMessage(void*);
+
 void SetStdinEcho(bool enable = true)
 {
 #ifdef WIN32
@@ -50,8 +52,8 @@ int __cdecl main(int argc, char **argv)
     struct addrinfo *result = NULL,
                     *ptr = NULL,
                     hints;
-    char motEnvoye[10];
-	char motRecu[10];
+    char motEnvoye[200];
+	char motRecu[330];
     int iResult;
 
 	//--------------------------------------------
@@ -105,7 +107,7 @@ int __cdecl main(int argc, char **argv)
 			printf("Erreur: le port doit etre entre 5000 et 5050, veuillez reessayer. \n");
 		}
 	} while (portInt < 5000 || portInt > 5050);
-
+	reconnexion:
 	char username[80];
 	printf("Entrez votre nom d'utilisateur: \n");
 	gets_s(username);
@@ -171,58 +173,39 @@ int __cdecl main(int argc, char **argv)
 	if (loginCode[0] == '1') {
 		printf("Connecte au serveur %s:%s\n\n", host, port);
 		freeaddrinfo(result);
+		printf("Vous pouvez commencer la discussion\n");
 
-		/*	iResult = send(leSocket, username, 80, 0);
-			if (iResult == SOCKET_ERROR) {
-				printf("Erreur du send: %d\n", WSAGetLastError());
-				closesocket(leSocket);
-				WSACleanup();
-				printf("Appuyez une touche pour finir\n");
-				getchar();
 
-				return 1;
+		DWORD nThreadId;
+		CreateThread(0, 0, recvMessage, (void*)&leSocket, 0, &nThreadId);
+
+		while (strlen(gets_s(motEnvoye)) != 0) 
+		{
+			if (strlen(motEnvoye) != 0) {
+				printf("Voici ce qui a ete ecrit : %s\n", motEnvoye);
+				//-----------------------------
+				// Envoyer le mot au serveur
+				iResult = send(leSocket, motEnvoye, strlen(motEnvoye), 0);
+				if (iResult == SOCKET_ERROR) {
+					printf("Erreur du send: %d\n", WSAGetLastError());
+					closesocket(leSocket);
+					WSACleanup();
+					printf("Appuyez une touche pour finir\n");
+					getchar();
+
+					return 1;
+				}
+				memset(motEnvoye, 0, sizeof(motEnvoye));
 			}
-
-			iResult = send(leSocket, password, 80, 0);
-			if (iResult == SOCKET_ERROR) {
-				printf("Erreur du send: %d\n", WSAGetLastError());
-				closesocket(leSocket);
-				WSACleanup();
-				printf("Appuyez une touche pour finir\n");
-				getchar();
-
-				return 1;
-			}
-
-			char validateLogin[1];
-			iResult = recv(leSocket, validateLogin, 1, 0);
-			if (iResult == SOCKET_ERROR) {
-				printf("Erreur du send: %d\n", WSAGetLastError());
-				closesocket(leSocket);
-				WSACleanup();
-				printf("Appuyez une touche pour finir\n");
-				getchar();
-
-				return 1;
-			}*/
-
+		}
+		closesocket(leSocket);
 			//----------------------------
 			// Demander à l'usager un mot a envoyer au serveur
-		printf("Saisir un mot de 7 lettres pour envoyer au serveur: ");
-		gets_s(motEnvoye);
+		//printf("Saisir un mot de 7 lettres pour envoyer au serveur: ");
+		//gets_s(motEnvoye);
 
-		//-----------------------------
-		// Envoyer le mot au serveur
-		iResult = send(leSocket, motEnvoye, 7, 0);
-		if (iResult == SOCKET_ERROR) {
-			printf("Erreur du send: %d\n", WSAGetLastError());
-			closesocket(leSocket);
-			WSACleanup();
-			printf("Appuyez une touche pour finir\n");
-			getchar();
 
-			return 1;
-		}
+		
 
 		printf("Nombre d'octets envoyes : %ld\n", iResult);
 
@@ -250,5 +233,14 @@ int __cdecl main(int argc, char **argv)
 		printf("Appuyez une touche pour finir\n");
 		getchar();
 		return 0;
+	}
+}
+
+DWORD WINAPI recvMessage(void* s) {
+	SOCKET* leSocket = static_cast<SOCKET*>(s);
+	char motRecu[330];
+	while (true) {
+		recv(*leSocket, motRecu, sizeof(motRecu) / sizeof(motRecu[0]), 0);
+		printf("reception de message : %s\n", motRecu);
 	}
 }
