@@ -1,6 +1,7 @@
 #undef UNICODE
 
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #include <iostream>
 #include <algorithm>
 #include <strstream>
@@ -9,6 +10,9 @@
 #include <time.h>
 #include <sstream>
 #include <vector>
+#include <queue>
+#include <string>
+#include <iomanip>
 
 using namespace std;
 
@@ -23,6 +27,7 @@ struct userStruct
 {
 	SOCKET userSd_;
 	char* username_;
+	char* password_;
 	char* adresseIP_;
 	int port_;
 	char* message_;
@@ -110,6 +115,7 @@ static struct ErrorEntry {
 };
 const int kNumMessages = sizeof(gaErrorList) / sizeof(ErrorEntry);
 vector<userStruct*> userList;
+deque<string> recentMessages;
 
 //// WSAGetLastErrorMessage ////////////////////////////////////////////
 // A function similar in spirit to Unix's perror() that tacks a canned 
@@ -176,23 +182,33 @@ int main(void)
     //----------------------
     // The sockaddr_in structure specifies the address family,
     // IP address, and port for the socket that is being bound.
+
+	//Récupération du port
 	int port;
 	do{
-		printf("Entrez le port d'ecoute (entre 5000 et 5050): \n");
+		cout << "Entrez le port d'ecoute (entre 5000 et 5050): \n";
 		cin >> port;
-		if (port < 5000 || port > 5050) {
-			printf("Erreur: le port doit etre entre 5000 et 5050, veuillez reessayer. \n");
+		if ( cin.fail() || port < 5000 || port > 5050) {
+			cout << "Erreur: le port doit etre entre 5000 et 5050, veuillez reessayer. \n";
+			cin.clear();
+			cin.ignore(10000, '\n');
 		}
 	}while (port < 5000 || port > 5050);
-    
-	//Recuperation de l'adresse locale
+
 	hostent *thisHost;
 
-	//TODO Modifier l'adresse IP ci-dessous pour celle de votre poste.
+	//Récupération de l'adresse IP
 	string ipStr;
+	int isValidHost;
 	do {
-		printf("Entrez l'adresse IP de l'hote du serveur: \n");
-		cin >> ipStr;
+		do {
+			printf("Entrez l'adresse IP de l'hote du serveur: \n");
+			cin >> ipStr;
+			struct sockaddr_in sa;
+			isValidHost = inet_pton(AF_INET, ipStr.c_str(), &(sa.sin_addr));
+			if(!isValidHost)
+				printf("Erreur: adresse IPv4 non conforme.\n");
+		} while (!isValidHost);
 		printf("Connexion en cours... \n");
 		const char* ipChar = ipStr.c_str();
 		thisHost = gethostbyname(ipChar);
@@ -200,13 +216,13 @@ int main(void)
 			printf("Erreur: impossible de se connecter a l'adresse IP donnee. \n");
 		}
 	} while (thisHost == NULL);
+
+	//construction du sockaddr_in
 	char* ip;
 	ip=inet_ntoa(*(struct in_addr*) *thisHost->h_addr_list);
 	printf("Adresse locale trouvee %s : \n\n",ip);
 	sockaddr_in service;
     service.sin_family = AF_INET;
-    //service.sin_addr.s_addr = inet_addr("127.0.0.1");
-	//	service.sin_addr.s_addr = INADDR_ANY;
 	service.sin_addr.s_addr = inet_addr(ip);
     service.sin_port = htons(port);
 
@@ -231,18 +247,6 @@ int main(void)
 
 	printf("En attente des connections des clients sur le port %d...\n\n",ntohs(service.sin_port));
 
-
-
-
-	fstream fichier;
-	fichier.open("infoPersonelle.txt", fstream::in );
-	if (!fichier) {
-		fichier.open("infoPersonelle.txt", fstream::in | fstream::out | fstream::trunc);
-		fichier.close();
-		fichier.open("infoPersonelle.txt", fstream::in);
-	}
-
-
     while (true) {	
 
 		sockaddr_in sinRemote;
@@ -251,69 +255,26 @@ int main(void)
 		// Accept the connection.
 		SOCKET sd = accept(ServerSocket, (sockaddr*)&sinRemote, &nAddrSize);
 
-
-
-
-
-
-
+		//Le serveur recoit le nom d'utilisateur et le mot de passe
 		char readBuffer;
 		char readUsername[80], readPassword[80];
 		readBuffer = recv(sd, readUsername, 80, 0); 
 		readBuffer = recv(sd, readPassword, 80, 0);
-		size_t usernameSize = strlen(readUsername);
-		size_t passwordSize = strlen(readPassword);
 
-
-
-		bool foundUser = false;
-		bool validCreds = true;
+		//Vérification si le socket est valide
         if (sd != INVALID_SOCKET) {
-			while (!fichier.eof() && !foundUser) {
-				char username[80];
-				char password[80];
-				fichier >> username;
-				fichier >> password;
-				//fichier.getline(username, 80, (char)" ");
-				//fichier.getline(password, 80, (char)"\n");
-				cout << readUsername << ":" << username << "\n";
-				if (strcmp(readUsername, username) == 0) {
-					cout << "user found\n";
-					foundUser = true;
-					if (strcmp(readPassword, password) != 0) {
-						send(sd, "0", 1, 0);
-						validCreds = false;
-					}
-				}
-			}
-			fichier.close();
-			fichier.open("infoPersonelle.txt", fstream::out | fstream::app);
-			if (!foundUser) {
-				cout << "write" << "\n";
-				fichier.seekp(0, ios_base::end);
-				fichier << readUsername << " " << readPassword << "\n";
-			}
-				fichier.close();
-				fichier.open("infoPersonelle.txt", fstream::in);
-			if (validCreds) {
-				send(sd, "1", 1, 0);
-				cout << "Connection acceptee De : " <<
-					inet_ntoa(sinRemote.sin_addr) << ":" <<
-					ntohs(sinRemote.sin_port) << "." <<
-					endl;
+			DWORD nThreadID;
 
-				DWORD nThreadID;
+			//Structure contenant les infos de l'utilisateur connecté
+			userStruct *user = new userStruct();
+			user->userSd_ = sd;
+			user->username_ = charDeepCopy(readUsername, strlen(readUsername) + 1);
+			user->password_ = charDeepCopy(readPassword, strlen(readPassword) + 1);
+			user->adresseIP_ = inet_ntoa(sinRemote.sin_addr);
+			user->port_ = port;
 
-				userStruct *user = new userStruct();
-				user->userSd_ = sd;
-				user->username_ = charDeepCopy(readUsername, strlen(readUsername));
-				user->adresseIP_ = inet_ntoa(sinRemote.sin_addr);
-				user->port_ = port;
-				
-				userList.push_back(user);
-
-				CreateThread(0, 0, EchoHandler, user, 0, &nThreadID);
-			}
+			//Création d'un thread pour chaque client connecté
+			CreateThread(0, 0, EchoHandler, user, 0, &nThreadID);
         }
         else {
             cerr << WSAGetLastErrorMessage("Echec d'une connection.") << 
@@ -333,54 +294,138 @@ static DWORD WINAPI EchoHandler(void* u)
 {
 	userStruct* user = static_cast<userStruct*>(u);
 	SOCKET sd = (SOCKET)user->userSd_;
-	char readBuffer[200], outBuffer[330];
-	int readBytes;
-	while (readBytes = recv(sd, readBuffer, 200, 0) != 0 && readBuffer != "") {
-		// Read Data from client
-		
-		
 
+	//BD contenant noms d'utilisateur et mots de passe
+	fstream fichier;
+	fichier.open("infoPersonelle.txt", fstream::in);
+	if (!fichier) {
+		fichier.open("infoPersonelle.txt", fstream::in | fstream::out | fstream::trunc);
+		fichier.close();
+		fichier.open("infoPersonelle.txt", fstream::in);
+	}
+
+	//Vérification du mot de passe entré par l'utilisateur
+	bool foundUser = false;
+	bool validCreds = true;
+	while (!fichier.eof() && !foundUser) {
+		char username[80];
+		char password[80];
+		fichier >> username;
+		fichier >> password;
+		cout << user->username_ << ":" << username << "\n";
+		if (strcmp(user->username_, username) == 0) {
+			foundUser = true;
+			if (strcmp(user->password_, password) != 0) {
+				send(sd, "0", 1, 0);
+				validCreds = false;
+				cout << "Connection refusee De : " <<
+					user->adresseIP_ << ":" <<
+					user->port_ << "." <<
+					endl;
+				RemoveSocket(sd);
+				return 0;
+			}
+		}
+	}
+	fichier.close();
+
+	//Création d'un nouvel utilisateur si celui-ci n'a pas été trouvé dans le fichier
+	fichier.open("infoPersonelle.txt", fstream::out | fstream::app);
+	if (!foundUser) {
+		cout << "write" << "\n";
+		fichier.seekp(0, ios_base::end);
+		fichier << user->username_ << " " << user->password_ << "\n";
+	}
+	fichier.close();
+	fichier.open("infoPersonelle.txt", fstream::in);
+
+	//Si tout se passe bien, on accepte la connection et on ajoute l'usager à la liste de client connectés
+	if (validCreds) {
+		send(sd, "1", 1, 0);
+		cout << "Connection acceptee De : " <<
+			user->adresseIP_ << ":" <<
+			user->port_ << "." <<
+			endl;
+
+		userList.push_back(user);
+	}
+
+	//Réservation d'espaces mémoire pour la réception et l'envoi de données
+	char readBuffer[200], outBuffer[330];
+	memset(readBuffer, 0, sizeof(readBuffer));
+	memset(outBuffer, 0, sizeof(outBuffer));
+
+	//Envoie les 15 derniers messages
+	for (deque<string>::iterator it = recentMessages.begin(); it != recentMessages.end(); ++it) {
+		strcpy(outBuffer, it->c_str());
+		send(user->userSd_, outBuffer, sizeof(outBuffer)/ sizeof(outBuffer[0]), 0);
+		memset(outBuffer, 0, sizeof(outBuffer));
+	}
+
+
+	int readBytes;
+	while ( strcmp(readBuffer,"___DISCONNECT___") != 0) {
+		// Read Data from client
+		memset(readBuffer, 0, sizeof(readBuffer));
+		readBytes = recv(sd, readBuffer, 200, 0);
 		user->message_ = readBuffer;
-		if (readBytes > 0) {
+		if (readBytes > 0 && strcmp(readBuffer, "___DISCONNECT___") != 0) {
 
 			stringstream replyBuf;
-			time_t timev;
-			replyBuf << "[" << user->username_ << " - " << user->adresseIP_ << ":" << user->port_ << " - " << "]: " << user->message_;
+			time_t t = time(0);   // get time now
+			struct tm * now = localtime(&t);
+
+			replyBuf << "[" << user->username_ << " - " << user->adresseIP_ << ":" << user->port_ << " - " <<
+				        (now->tm_year + 1900) << "-" << setfill('0') << setw(2) << (now->tm_mon + 1) << "-" <<
+						setfill('0') << setw(2) << now->tm_mday << "@" << setfill('0') << setw(2) << now->tm_hour <<
+						":" << setfill('0') << setw(2) << now->tm_min << ":" << setfill('0') << setw(2) << now->tm_sec <<
+						"]: " << user->message_;
 			strcpy(outBuffer,replyBuf.str().c_str());
-			cout << "reply: " << outBuffer << "\n";
 			for(vector<userStruct*>::iterator it = userList.begin(); it != userList.end(); ++it){
 				send((*it)->userSd_, outBuffer, sizeof(outBuffer) / sizeof(outBuffer[0]), 0);
 			}
+			//enqueue message
+			string sMessage = outBuffer;
+			//record last 15 messages
+			recentMessages.push_back(sMessage);
+			if (recentMessages.size() > 15) {
+				recentMessages.pop_front();
+			}
+			//Record messages in history
+			fstream fichier;
+			fichier.open("MessageHistory.txt", fstream::out | fstream::app);
+			if (!fichier) {
+				fichier.open("MessageHistory.txt", fstream::out | fstream::out | fstream::trunc);
+			}
+			fichier << sMessage << endl;
+			fichier.close();
 		}
 		else if (readBytes == SOCKET_ERROR) {
 			cout << WSAGetLastErrorMessage("Echec de la reception !") << endl;
+			RemoveSocket(sd);
+			return 0;
 		}
 			
-		memset(readBuffer, 0, sizeof(readBuffer));
 	}
 	RemoveSocket(sd);
-	
-
 	return 0;
-}
-// Do Something with the information
-void DoSomething( char *src, char *dest )
-{
-	auto index = 0;
-	for (auto i = 6; i >= 0; i--)
-	{
-		dest[index++] = (i % 2 != 0) ? src[i] : toupper(src[i]);
-	}
+	terminate();
 }
 
+//Déconnecte un utilisateur du serveur(côté serveur seulement!).
 void RemoveSocket(SOCKET s){
-	for (vector<userStruct*>::iterator it = userList.begin(); it != userList.end(); ++it) {
-		if ((*it)->userSd_ == s)
+	bool foundSocket = false;
+	for (vector<userStruct*>::iterator it = userList.begin(); it != userList.end() && !foundSocket; ++it) {
+		if ((*it)->userSd_ == s) {
+			cout << "User " << (*it)->username_ << " disconnected from server.\n";
 			userList.erase(it);
+			foundSocket = true;
+		}
 	}
 	closesocket(s);
 }
 
+//Deep copy pour les c-string
 char* charDeepCopy(char* source, int size) {
 	char* arr2 = new char[size + 1];
 	for (int i = 0; i < size; ++i) {
@@ -388,12 +433,3 @@ char* charDeepCopy(char* source, int size) {
 	}
 	return arr2;
 }
-
-/*int checkUsernamePassword(char input[80]) {
-	int i = 0;
-	char c;
-	do {
-		c = input[i];
-	} while (c != (char)" " && c != NULL);
-	return i;
-}*/
